@@ -169,9 +169,6 @@ class Result {
 
 }
 
-record Pair(int slot, Result slotValue) {
-}
-
 record Entry(byte[] key, Result value) {
 }
 
@@ -192,7 +189,7 @@ class ByteArrayToResultMap {
     return result;
   }
 
-  private Pair getPair(byte[] key, int offset, int size) {
+  public void putOrMerge(byte[] key, int offset, int size, Supplier<Result> supplier, Consumer<Result> merge) {
     int hash = hashCode(key, offset, size);
     int slot = hash & (slots.length - 1);
     var slotValue = slots[slot];
@@ -201,14 +198,8 @@ class ByteArrayToResultMap {
       slot = (slot + 1) & (slots.length - 1);
       slotValue = slots[slot];
     }
-    return new Pair(slot, slotValue);
-  }
-
-  public void putOrMerge(byte[] key, int offset, int size, Supplier<Result> supplier, Consumer<Result> merge) {
-    Pair result = getPair(key, offset, size);
-    Result value = result.slotValue();
+    Result value = slotValue;
     if (value == null) {
-      int slot = result.slot();
       slots[slot] = supplier.get();
       byte[] bytes = new byte[size];
       System.arraycopy(key, offset, bytes, 0, size);
