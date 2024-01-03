@@ -37,6 +37,8 @@ import java.util.stream.Collectors;
 public class CalculateAverage_spullara {
   private static final String FILE = "./measurements.txt";
 
+  private static final VectorSpecies<Byte> SPECIES = ByteVector.SPECIES_PREFERRED;
+
   /*
    * My results on this computer:
    *
@@ -62,16 +64,27 @@ public class CalculateAverage_spullara {
         int startLine;
         int limit = bb.limit();
         while ((startLine = bb.position()) < limit) {
+          bb.get(buffer, 0, Math.min(limit - startLine, 64));
           int currentPosition = startLine;
           byte b;
           int offset = 0;
-          while (currentPosition != segmentEnd && (b = bb.get(currentPosition++)) != ';') {
-            buffer[offset++] = b;
+          ByteVector delimiter = ByteVector.broadcast(SPECIES, (byte) ';');
+          int i = 0;
+          int upperBound = SPECIES.loopBound(buffer.length);
+          for (; i < upperBound; i += SPECIES.length()) {
+            var vector = ByteVector.fromArray(SPECIES, buffer, i);
+            var mask = vector.eq(delimiter);
+            if (mask.anyTrue()) {
+              offset = i + mask.firstTrue() + 1;
+              break;
+            }
           }
+          currentPosition += offset;
+          int cityEnd = offset - 1;
           int temp = 0;
           int negative = 1;
           outer:
-          while (currentPosition != segmentEnd && (b = bb.get(currentPosition++)) != '\n') {
+          while (currentPosition++ != segmentEnd && (b = buffer[offset++]) != '\n') {
             switch (b) {
               case '-':
                 negative = -1;
@@ -86,7 +99,7 @@ public class CalculateAverage_spullara {
           }
           temp *= negative;
           double finalTemp = temp / 10.0;
-          resultMap.putOrMerge(buffer, 0, offset,
+          resultMap.putOrMerge(buffer, 0, cityEnd,
                   () -> new Result(finalTemp),
                   measurement -> merge(measurement, finalTemp, finalTemp, finalTemp, 1));
           lines++;
