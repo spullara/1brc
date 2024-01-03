@@ -180,17 +180,12 @@ class ByteArrayToResultMap {
   Result[] slots = new Result[MAPSIZE];
   byte[][] keys = new byte[MAPSIZE][];
 
-  private int hashCode(byte[] a, int fromIndex, int length) {
-    int result = 0;
-    int end = fromIndex + length;
-    for (int i = fromIndex; i < end; i++) {
-      result = 31 * result + a[i];
-    }
-    return result;
-  }
-
   public void putOrMerge(byte[] key, int offset, int size, Supplier<Result> supplier, Consumer<Result> merge) {
-    int hash = hashCode(key, offset, size);
+    int hash = 0;
+    int end = offset + size;
+    for (int i = offset; i < end; i++) {
+      hash = 31 * hash + key[i];
+    }
     int slot = hash & (slots.length - 1);
     var slotValue = slots[slot];
     // Linear probe for open slot
