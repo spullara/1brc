@@ -35,14 +35,14 @@ import java.util.stream.Collectors;
 public class CalculateAverage_spullara {
   private static final String FILE = "./measurements.txt";
 
-    /*
-     * My results on this computer:
-     *
-     * CalculateAverage: 2m37.788s
-     * CalculateAverage_royvanrijn: 0m29.639s
-     * CalculateAverage_spullara: 0m2.013s
-     *
-     */
+  /*
+   * My results on this computer:
+   *
+   * CalculateAverage: 2m37.788s
+   * CalculateAverage_royvanrijn: 0m29.639s
+   * CalculateAverage_spullara: 0m2.013s
+   *
+   */
 
   public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
     var filename = args.length == 0 ? FILE : args[0];
@@ -77,14 +77,12 @@ public class CalculateAverage_spullara {
             temp = (b - '0');
             b = bb.get(currentPosition++);
             do {
-              switch (b) {
-                case '.':
-                  break;
-                case '\r':
-                  currentPosition++;
-                  break outer;
-                default:
-                  temp = 10 * temp + (b - '0');
+              if (b == '.') {
+              } else if (b == '\r') {
+                currentPosition++;
+                break outer;
+              } else {
+                temp = 10 * temp + (b - '0');
               }
             } while (currentPosition != segmentEnd && (b = bb.get(currentPosition++)) != '\n');
           }
@@ -105,7 +103,7 @@ public class CalculateAverage_spullara {
 
     var resultMap = results.stream()
             .flatMap(partition -> partition.getAll().stream())
-                    .collect(Collectors.toMap(e -> new String(e.key()), Entry::value, CalculateAverage_spullara::merge, TreeMap::new));
+            .collect(Collectors.toMap(e -> new String(e.key()), Entry::value, CalculateAverage_spullara::merge, TreeMap::new));
 
     System.out.println("Time: " + (System.currentTimeMillis() - start) + "ms");
     System.out.println("Lines processed: " + totalLines);
@@ -182,7 +180,7 @@ record FileSegment(long start, long end) {
 }
 
 class ByteArrayToResultMap {
-  public static final int MAPSIZE = 1024*128;
+  public static final int MAPSIZE = 1024 * 128;
   Result[] slots = new Result[MAPSIZE];
   byte[][] keys = new byte[MAPSIZE][];
 
