@@ -119,7 +119,7 @@ public class CalculateAverage_spullara {
         int numberOfSegments = Runtime.getRuntime().availableProcessors();
         long fileSize = file.length();
         long segmentSize = fileSize / numberOfSegments;
-        List<FileSegment> segments = new ArrayList<>();
+        List<FileSegment> segments = new ArrayList<>(numberOfSegments);
         try (RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r")) {
             for (int i = 0; i < numberOfSegments; i++) {
                 long segStart = i * segmentSize;
