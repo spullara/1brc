@@ -69,18 +69,24 @@ public class CalculateAverage_spullara {
           int temp = 0;
           int negative = 1;
           outer:
-          while (currentPosition != segmentEnd && (b = bb.get(currentPosition++)) != '\n') {
-            switch (b) {
-              case '-':
-                negative = -1;
-              case '.':
-                break;
-              case '\r':
-                currentPosition++;
-                break outer;
-              default:
-                temp = 10 * temp + (b - '0');
+          if (currentPosition != segmentEnd && (b = bb.get(currentPosition++)) != '\n') {
+            if (b == '-') {
+              negative = -1;
+              b = bb.get(currentPosition++);
             }
+            temp = (b - '0');
+            b = bb.get(currentPosition++);
+            do {
+              switch (b) {
+                case '.':
+                  break;
+                case '\r':
+                  currentPosition++;
+                  break outer;
+                default:
+                  temp = 10 * temp + (b - '0');
+              }
+            } while (currentPosition != segmentEnd && (b = bb.get(currentPosition++)) != '\n');
           }
           temp *= negative;
           double finalTemp = temp / 10.0;
