@@ -50,7 +50,7 @@ public class CalculateAverage_spullara {
         long start = System.currentTimeMillis();
 
         var totalLines = new AtomicInteger();
-        var results = getFileSegments(file).stream().map(segment -> {
+        var resultsMap = getFileSegments(file).stream().map(segment -> {
             var resultMap = new ByteArrayToResultMap();
             long segmentEnd = segment.end();
             try (var fileChannel = (FileChannel) Files.newByteChannel(Path.of(filename), StandardOpenOption.READ)) {
@@ -104,15 +104,12 @@ public class CalculateAverage_spullara {
             catch (IOException e) {
                 throw new RuntimeException(e);
             }
-        }).parallel().toList();
-
-        var resultMap = results.stream()
-                .flatMap(partition -> partition.getAll().stream())
-                .collect(Collectors.toMap(e -> new String(e.key()), Entry::value, CalculateAverage_spullara::merge, TreeMap::new));
+        }).parallel().flatMap(partition -> partition.getAll().stream())
+                .collect(Collectors.toMap(e -> new String(e.key()), e -> e.value(), CalculateAverage_spullara::merge, TreeMap::new));
 
         System.out.println("Time: " + (System.currentTimeMillis() - start) + "ms");
         System.out.println("Lines processed: " + totalLines);
-        System.out.println(resultMap);
+        System.out.println(resultsMap.get("Abha"));
     }
 
     private static List<FileSegment> getFileSegments(File file) throws IOException {
@@ -215,7 +212,7 @@ class ByteArrayToResultMap {
 
     // Get all pairs
     public List<Entry> getAll() {
-        List<Entry> result = new ArrayList<>();
+        List<Entry> result = new ArrayList<>(slots.length);
         for (int i = 0; i < slots.length; i++) {
             Result slotValue = slots[i];
             if (slotValue != null) {
