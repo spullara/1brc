@@ -15,6 +15,9 @@
  */
 package dev.morling.onebrc;
 
+import jdk.incubator.vector.ByteVector;
+import jdk.incubator.vector.VectorSpecies;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -23,7 +26,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
@@ -35,14 +37,14 @@ import java.util.stream.Collectors;
 public class CalculateAverage_spullara {
   private static final String FILE = "./measurements.txt";
 
-    /*
-     * My results on this computer:
-     *
-     * CalculateAverage: 2m37.788s
-     * CalculateAverage_royvanrijn: 0m29.639s
-     * CalculateAverage_spullara: 0m2.013s
-     *
-     */
+  /*
+   * My results on this computer:
+   *
+   * CalculateAverage: 2m37.788s
+   * CalculateAverage_royvanrijn: 0m29.639s
+   * CalculateAverage_spullara: 0m2.013s
+   *
+   */
 
   public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
     var filename = args.length == 0 ? FILE : args[0];
@@ -99,7 +101,7 @@ public class CalculateAverage_spullara {
 
     var resultMap = results.stream()
             .flatMap(partition -> partition.getAll().stream())
-                    .collect(Collectors.toMap(e -> new String(e.key()), Entry::value, CalculateAverage_spullara::merge, TreeMap::new));
+            .collect(Collectors.toMap(e -> new String(e.key()), Entry::value, CalculateAverage_spullara::merge, TreeMap::new));
 
     System.out.println("Time: " + (System.currentTimeMillis() - start) + "ms");
     System.out.println("Lines processed: " + totalLines);
@@ -176,7 +178,7 @@ record FileSegment(long start, long end) {
 }
 
 class ByteArrayToResultMap {
-  public static final int MAPSIZE = 1024*128;
+  public static final int MAPSIZE = 1024 * 128;
   Result[] slots = new Result[MAPSIZE];
   byte[][] keys = new byte[MAPSIZE][];
 
@@ -189,7 +191,7 @@ class ByteArrayToResultMap {
     int slot = hash & (slots.length - 1);
     var slotValue = slots[slot];
     // Linear probe for open slot
-    while (slotValue != null && (keys[slot].length != size || !Arrays.equals(keys[slot], 0, size, key, offset, size))) {
+    while (slotValue != null && (keys[slot].length != size || !isEquals(key, offset, size, slot))) {
       slot = (slot + 1) & (slots.length - 1);
       slotValue = slots[slot];
     }
@@ -202,6 +204,35 @@ class ByteArrayToResultMap {
     } else {
       merge.accept(value);
     }
+  }
+
+  private static final VectorSpecies<Byte> SPECIES = ByteVector.SPECIES_PREFERRED;
+
+  private boolean isEquals(byte[] array1, int offset, int size, int slot) {
+    byte[] array2 = keys[slot];
+    if (size != array2.length) {
+      return false;
+    }
+
+    int i = 0;
+    int upperBound = SPECIES.loopBound(size);
+
+    for (; i < upperBound; i += SPECIES.length()) {
+      var vector1 = ByteVector.fromArray(SPECIES, array1, i + offset);
+      var vector2 = ByteVector.fromArray(SPECIES, array2, i);
+
+      if (!vector2.eq(vector1).allTrue()) {
+        return false;
+      }
+    }
+
+    for (; i < size; i++) {
+      if (array1[offset + i] != array2[i]) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   // Get all pairs
