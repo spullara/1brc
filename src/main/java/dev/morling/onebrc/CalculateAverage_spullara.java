@@ -68,7 +68,7 @@ public class CalculateAverage_spullara {
                     }
                     int temp = 0;
                     int negative = 1;
-                    outer: if (currentPosition != segmentEnd && (b = bb.get(currentPosition++)) != '\n') {
+                    if (currentPosition != segmentEnd && (b = bb.get(currentPosition++)) != '\n') {
                         if (b == '-') {
                             negative = -1;
                             b = bb.get(currentPosition++);
@@ -77,10 +77,12 @@ public class CalculateAverage_spullara {
                         b = bb.get(currentPosition++);
                         do {
                             if (b == '.') {
-                            }
-                            else if (b == '\r') {
-                                currentPosition++;
-                                break outer;
+                                b = bb.get(currentPosition++);
+                                temp = 10 * temp + (b - '0');
+                                if (b == '\r') {
+                                    currentPosition++;
+                                    break;
+                                }
                             }
                             else {
                                 temp = 10 * temp + (b - '0');
@@ -182,43 +184,43 @@ class Result {
     }
 
 class ByteArrayToResultMap {
-  public static final int MAPSIZE = 1024 * 128;
-  Result[] slots = new Result[MAPSIZE];
-  byte[][] keys = new byte[MAPSIZE][];
+    public static final int MAPSIZE = 1024 * 128;
+    Result[] slots = new Result[MAPSIZE];
+    byte[][] keys = new byte[MAPSIZE][];
 
-  public void putOrMerge(byte[] key, int offset, int size, Supplier<Result> supplier, Consumer<Result> merge) {
-    int hash = 0;
-    int end = offset + size;
-    for (int i = offset; i < end; i++) {
-      hash = 31 * hash + key[i];
+    public void putOrMerge(byte[] key, int offset, int size, Supplier<Result> supplier, Consumer<Result> merge) {
+        int hash = 0;
+        int end = offset + size;
+        for (int i = offset; i < end; i++) {
+            hash = 31 * hash + key[i];
+        }
+        int slot = hash & (slots.length - 1);
+        var slotValue = slots[slot];
+        // Linear probe for open slot
+        while (slotValue != null && (keys[slot].length != size || !Arrays.equals(keys[slot], 0, size, key, offset, size))) {
+            slot = (slot + 1) & (slots.length - 1);
+            slotValue = slots[slot];
+        }
+        Result value = slotValue;
+        if (value == null) {
+            slots[slot] = supplier.get();
+            byte[] bytes = new byte[size];
+            System.arraycopy(key, offset, bytes, 0, size);
+            keys[slot] = bytes;
+        } else {
+            merge.accept(value);
+        }
     }
-    int slot = hash & (slots.length - 1);
-    var slotValue = slots[slot];
-    // Linear probe for open slot
-    while (slotValue != null && (keys[slot].length != size || !Arrays.equals(keys[slot], 0, size, key, offset, size))) {
-      slot = (slot + 1) & (slots.length - 1);
-      slotValue = slots[slot];
-    }
-    Result value = slotValue;
-    if (value == null) {
-      slots[slot] = supplier.get();
-      byte[] bytes = new byte[size];
-      System.arraycopy(key, offset, bytes, 0, size);
-      keys[slot] = bytes;
-    } else {
-      merge.accept(value);
-    }
-  }
 
-  // Get all pairs
-  public List<Entry> getAll() {
-    List<Entry> result = new ArrayList<>();
-    for (int i = 0; i < slots.length; i++) {
-      Result slotValue = slots[i];
-      if (slotValue != null) {
-        result.add(new Entry(keys[i], slotValue));
-      }
+    // Get all pairs
+    public List<Entry> getAll() {
+        List<Entry> result = new ArrayList<>();
+        for (int i = 0; i < slots.length; i++) {
+            Result slotValue = slots[i];
+            if (slotValue != null) {
+                result.add(new Entry(keys[i], slotValue));
+            }
+        }
+        return result;
     }
-    return result;
-  }
 }
