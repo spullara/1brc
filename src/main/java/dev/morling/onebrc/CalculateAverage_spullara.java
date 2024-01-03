@@ -79,10 +79,11 @@ public class CalculateAverage_spullara {
                             if (b == '.') {
                                 b = bb.get(currentPosition++);
                                 temp = 10 * temp + (b - '0');
+                                b = bb.get(currentPosition++);
                                 if (b == '\r') {
                                     currentPosition++;
-                                    break;
                                 }
+                                break;
                             }
                             else {
                                 temp = 10 * temp + (b - '0');
