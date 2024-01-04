@@ -45,18 +45,16 @@ public class CalculateAverage_spullara {
      */
 
     public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
+        long start = System.currentTimeMillis();
         var filename = args.length == 0 ? FILE : args[0];
         var file = new File(filename);
-        long start = System.currentTimeMillis();
 
-        var totalLines = new AtomicInteger();
         var resultsMap = getFileSegments(file).stream().map(segment -> {
             var resultMap = new ByteArrayToResultMap();
             long segmentEnd = segment.end();
             try (var fileChannel = (FileChannel) Files.newByteChannel(Path.of(filename), StandardOpenOption.READ)) {
                 var bb = fileChannel.map(FileChannel.MapMode.READ_ONLY, segment.start(), segmentEnd - segment.start());
                 var buffer = new byte[64];
-                int lines = 0;
                 int startLine;
                 int limit = bb.limit();
                 while ((startLine = bb.position()) < limit) {
@@ -95,21 +93,18 @@ public class CalculateAverage_spullara {
                     resultMap.putOrMerge(buffer, 0, offset,
                             () -> new Result(finalTemp),
                             measurement -> merge(measurement, finalTemp, finalTemp, finalTemp, 1));
-                    lines++;
                     bb.position(currentPosition);
                 }
-                totalLines.addAndGet(lines);
                 return resultMap;
             }
             catch (IOException e) {
                 throw new RuntimeException(e);
             }
         }).parallel().flatMap(partition -> partition.getAll().stream())
-                .collect(Collectors.toMap(e -> new String(e.key()), e -> e.value(), CalculateAverage_spullara::merge, TreeMap::new));
+                .collect(Collectors.toMap(e -> new String(e.key()), Entry::value, CalculateAverage_spullara::merge, TreeMap::new));
 
-        System.out.println("Time: " + (System.currentTimeMillis() - start) + "ms");
-        System.out.println("Lines processed: " + totalLines);
         System.out.println(resultsMap.get("Abha"));
+        System.out.println("Time: " + (System.currentTimeMillis() - start) + "ms");
     }
 
     private static List<FileSegment> getFileSegments(File file) throws IOException {
