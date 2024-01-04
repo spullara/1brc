@@ -27,7 +27,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -90,9 +89,7 @@ public class CalculateAverage_spullara {
                     }
                     temp *= negative;
                     double finalTemp = temp / 10.0;
-                    resultMap.putOrMerge(buffer, 0, offset,
-                            () -> new Result(finalTemp),
-                            measurement -> merge(measurement, finalTemp, finalTemp, finalTemp, 1));
+                    resultMap.putOrMerge(buffer, 0, offset, finalTemp);
                     bb.position(currentPosition);
                 }
                 return resultMap;
@@ -181,7 +178,7 @@ class ByteArrayToResultMap {
     Result[] slots = new Result[MAPSIZE];
     byte[][] keys = new byte[MAPSIZE][];
 
-    public void putOrMerge(byte[] key, int offset, int size, Supplier<Result> supplier, Consumer<Result> merge) {
+    public void putOrMerge(byte[] key, int offset, int size, double temp) {
         int hash = 0;
         int end = offset + size;
         for (int i = offset; i < end; i++) {
@@ -196,12 +193,15 @@ class ByteArrayToResultMap {
         }
         Result value = slotValue;
         if (value == null) {
-            slots[slot] = supplier.get();
+            slots[slot] = new Result(temp);
             byte[] bytes = new byte[size];
             System.arraycopy(key, offset, bytes, 0, size);
             keys[slot] = bytes;
         } else {
-            merge.accept(value);
+            value.min = Math.min(value.min, temp);
+            value.max = Math.max(value.max, temp);
+            value.sum += temp;
+            value.count += 1;
         }
     }
 
