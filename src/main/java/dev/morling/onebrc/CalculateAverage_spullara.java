@@ -27,8 +27,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class CalculateAverage_spullara {
@@ -98,7 +96,11 @@ public class CalculateAverage_spullara {
                 throw new RuntimeException(e);
             }
         }).parallel().flatMap(partition -> partition.getAll().stream())
-                .collect(Collectors.toMap(e -> new String(e.key()), Entry::value, CalculateAverage_spullara::merge, TreeMap::new));
+                .collect(Collectors.toMap(e -> new String(e.key()), e -> {
+                    Result value = e.value();
+                    value.calc();
+                    return value;
+                }, CalculateAverage_spullara::merge, TreeMap::new));
 
         System.out.println(resultsMap.get("Abha"));
         System.out.println("Time: " + (System.currentTimeMillis() - start) + "ms");
@@ -151,9 +153,32 @@ class Result {
     double min, max, sum;
     long count;
 
-    Result(double value) {
-        min = max = sum = value;
-        this.count = 1;
+    double[] temps = new double[64 * 1024];
+    int current = 0;
+
+    void add(double temp) {
+        if (current == temps.length) {
+            calc();
+        }
+        temps[current++] = temp;
+    }
+
+    void calc() {
+        double min = this.min;
+        double max = this.max;
+        double sum = this.sum;
+        long count = this.count;
+        for (int i = 0, tempsLength = temps.length; i < tempsLength; i++) {
+            double temp = temps[i];
+            min = Math.min(temp, min);
+            max = Math.max(temp, max);
+            sum += temp;
+        }
+        this.min = min;
+        this.max = max;
+        this.sum = sum;
+        this.count = count + current;
+        current = 0;
     }
 
     @Override
@@ -193,16 +218,13 @@ class ByteArrayToResultMap {
         }
         Result value = slotValue;
         if (value == null) {
-            slots[slot] = new Result(temp);
+            value = new Result();
+            slots[slot] = value;
             byte[] bytes = new byte[size];
             System.arraycopy(key, offset, bytes, 0, size);
             keys[slot] = bytes;
-        } else {
-            value.min = Math.min(value.min, temp);
-            value.max = Math.max(value.max, temp);
-            value.sum += temp;
-            value.count += 1;
         }
+        value.add(temp);
     }
 
     // Get all pairs
